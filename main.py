@@ -40,10 +40,8 @@ class ObjectDetection:
         """
         Function loads the yolo5 model from PyTorch Hub.
         """
-        gh_repo_path = 'josephsintum/plant_ml_colab/blob/main/plantdoc-yolov5.pth'
         path = 'plantdoc-yolov5.pth'
-        # model = torch.hub.load(repo_or_dir=path, model='yolov5s', pretrained=True)
-        model = torch.load_
+        model = torch.load(path)
         return model
 
     def score_frame(self, frame):
