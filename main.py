@@ -46,10 +46,10 @@ class ObjectDetection:
 
     def score_frame(self, frame):
         """
-            #     function scores each frame of the video and returns results.
-            #     :param frame: frame to be inferred.
-            #     :return: labels and coordinates of objects found.
-            #     """
+        #     function scores each frame of the video and returns results.
+        #     :param frame: frame to be inferred.
+        #     :return: labels and coordinates of objects found.
+        #     """
         device = 'cpu'
         self.model.to(device)
         frame = [torch.tensor(frame)]
@@ -96,6 +96,15 @@ class ObjectDetection:
         out = cv2.VideoWriter(self.out_file, four_cc, 20, (x_shape, y_shape))
         ret, frame = player.read()  # Read the first frame.
         while True:
+            if ret:
+                # Display the resulting frame
+                cv2.imshow('Plant Disease AI', frame)
+                # Press Q on keyboard to  exit
+                if cv2.waitKey(25) & 0xFF == ord('q'):
+                    break
+            else:
+                break
+
             start_time = time()  # We would like to measure the FPS.
             results = self.score_frame(frame)  # Score the Frame
             frame = self.plot_boxes(results, frame)  # Plot the boxes.
@@ -104,6 +113,9 @@ class ObjectDetection:
             print(f"Frames Per Second : {fps}")
             out.write(frame)  # Write the frame onto the output.
             ret, frame = player.read()  # Read next frame.
+
+        player.release()
+        cv2.destroyAllWindows()
 
 
 a = ObjectDetection()
