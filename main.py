@@ -20,10 +20,9 @@ class ObjectDetection:
         :return: void
         """
         self.model = self.load_model()
-        self.model.conf = 0.4  # set inference threshold at 0.3
-        self.model.iou = 0.3  # set inference IOU threshold at 0.3
-        self.model.classes = [0]  # set model to only detect "Person" class
-        self.out_file = "Labeled_Video.avi"
+        # self.model.conf = 0.4  # set inference threshold at 0.3
+        # self.model.iou = 0.3  # set inference IOU threshold at 0.3
+        # self.model.classes = [0]  # set model to only detect "one" class
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
     def get_stream(self):
@@ -40,8 +39,10 @@ class ObjectDetection:
         """
         Function loads the yolo5 model from PyTorch Hub.
         """
+        # Model
+        model = torch.hub.load('ultralytics/yolov5', 'yolov5s', pretrained=True)
         path = 'plantdoc-yolov5.pth'
-        model = torch.load(path)
+        model.load_state_dict(torch.load(path), strict=False)
         return model
 
     def score_frame(self, frame):
@@ -50,10 +51,8 @@ class ObjectDetection:
         #     :param frame: frame to be inferred.
         #     :return: labels and coordinates of objects found.
         #     """
-        device = 'cpu'
-        self.model.to(device)
-        frame = [torch.tensor(frame)]
-        results = self.model(frame)
+        self.model.to(self.device)
+        results = self.model([frame])
         labels = results.xyxyn[0][:, -1].numpy()
         cord = results.xyxyn[0][:, :-1].numpy()
         return labels, cord
@@ -81,40 +80,33 @@ class ObjectDetection:
             classes = self.model.names  # Get the name of label index
             label_font = cv2.FONT_HERSHEY_SIMPLEX  # Font for the label.
             cv2.rectangle(frame, (x1, y1), (x2, y2), bgr, 2)  # Plot the boxes
-            cv2.putText(frame, classes[labels[i]], (x1, y1), label_font, 0.9, bgr, 2)  # Put a label over box.
+            # cv2.putText(frame, classes[labels[i]], (x1, y1), label_font, 0.9, bgr, 2)  # Put a label over box.
 
-            return frame
+        return frame
 
     def __call__(self):
-        player = self.get_stream()  # Get your video stream.
-        assert player.isOpened()  # Make sure that their is a stream.
-        # Below code creates a new video writer object to write our
-        # output stream.
-        x_shape = int(player.get(cv2.CAP_PROP_FRAME_WIDTH))
-        y_shape = int(player.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        four_cc = cv2.VideoWriter_fourcc(*"MJPG")  # Using MJPEG codex
-        out = cv2.VideoWriter(self.out_file, four_cc, 20, (x_shape, y_shape))
-        ret, frame = player.read()  # Read the first frame.
+        stream = self.get_stream()  # Get your video stream.
+        assert stream.isOpened()  # Verify that there is a stream.
         while True:
+            start_time = time()  # We would like to measure the FPS.
+            ret, frame = stream.read()  # Read the first frame.
+
+            results = self.score_frame(frame)  # Score the Frame
+            frame = self.plot_boxes(results, frame)  # Plot the boxes.
+
+            end_time = time()
+            fps = 1 / np.round(end_time - start_time, 3)  # Measure the FPS.
+            print(f"Frames Per Second : {int(fps)}")
             if ret:
                 # Display the resulting frame
                 cv2.imshow('Plant Disease AI', frame)
-                # Press Q on keyboard to  exit
+                # Press Q on keyboard to exit
                 if cv2.waitKey(25) & 0xFF == ord('q'):
                     break
             else:
                 break
 
-            start_time = time()  # We would like to measure the FPS.
-            results = self.score_frame(frame)  # Score the Frame
-            frame = self.plot_boxes(results, frame)  # Plot the boxes.
-            end_time = time()
-            fps = 1 / np.round(end_time - start_time, 3)  # Measure the FPS.
-            print(f"Frames Per Second : {fps}")
-            out.write(frame)  # Write the frame onto the output.
-            ret, frame = player.read()  # Read next frame.
-
-        player.release()
+        stream.release()
         cv2.destroyAllWindows()
 
 
